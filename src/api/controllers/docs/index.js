@@ -8,9 +8,9 @@ const getPDFtoText = async (req, res) => {
     //console.log(x)
     if(x && x=="pdf")
     {   
-        getText(url)
+        getText(url,res)
         res.status(200);
-        res.json({"text":"textfrompdf"})
+        //res.json({"Message":"Success"})
     }
     else{
         res.status(404);
