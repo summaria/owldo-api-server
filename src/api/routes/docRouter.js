@@ -8,5 +8,5 @@ docRouter.get('/ping', (_,res) => {
 });
 
 // Config
-docRouter.get('/doc/text/:url',getPDFtoText);
+docRouter.get('/doc/text',getPDFtoText);
 module.exports = docRouter;
