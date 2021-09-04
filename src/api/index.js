@@ -1,6 +1,6 @@
 const express = require("express");
 // Routers
-const { docRouter } = require('./routes');
+const { sessionRouter } = require('./routes');
 //app
 const api = express();
 
@@ -12,6 +12,6 @@ api.get('/', (_,res)=>{
 });
 
 //Routes
-api.use('/docs',docRouter);
+api.use('/session',sessionRouter);
 
 module.exports = api;

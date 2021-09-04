@@ -1,3 +1,3 @@
 module.exports = {
-    docRouter: require("./docRouter")
+    sessionRouter : require("./sessionRouter")
 } 
