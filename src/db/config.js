@@ -7,9 +7,9 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
-const db = admin.firestore();
+const db_admin = admin;
 
-module.exports = db
+module.exports = db_admin
 
 async function decodeIDToken(req, res, next) {
   if (req.headers.authorization? req.headers.authorization.startsWith('Bearer '):false) {

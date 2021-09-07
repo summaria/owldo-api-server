@@ -1,9 +1,9 @@
-const db = require("../../../db/config");
+const db_admin = require("../../../db/config");
 const admin = require("firebase-admin");
-const sessionCollection = db.collection("session");
-const userCollection = db.collection("users");
-const contentCollection = db.collection("content")
-const FieldValue =  db.FieldValue
+const sessionCollection = db_admin.firestore().collection("session");
+const userCollection = db_admin.firestore().collection("users");
+const contentCollection = db_admin.firestore().collection("content")
+const FieldValue =  db_admin.firestore.FieldValue
 const UTILS = require("../utils")
 
 const addSessionToUser = async ({ sessionId, userId }) => {
@@ -39,12 +39,12 @@ const createSessionDB = async ({ title, fileURL, userId }) => {
       title,
       fileURL,
     });
-    /*
+    
     await addSessionToUser({
       sessionId: newSession.id,
       userId: userId,
     });
-    */
+    
     return newSession.id;
   };
 
