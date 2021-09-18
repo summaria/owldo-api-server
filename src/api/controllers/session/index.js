@@ -32,13 +32,14 @@ const addContentToSession = async ({sessionId, contentId}) => {
     return 
 }
 
-const createSessionDB = async ({ title, fileURL, userId }) => {
+const createSessionDB = async ({ title, fileURL, userId, questions }) => {
     const newSession = await sessionCollection.doc();
     //console.log(newSession);
     await sessionCollection.doc(newSession.id).set({
       id: newSession.id,
       title,
       fileURL,
+      questions
     });
     
     await addSessionToUser({
@@ -49,7 +50,7 @@ const createSessionDB = async ({ title, fileURL, userId }) => {
     return newSession.id;
   };
 
-const addMCQS = async (req,res) => {
+const addMCQS = async ({mcq_qa_json}) => {
     //Input : Array of JSON object
     //Add in session collection
     //Questions -> array
@@ -61,9 +62,30 @@ const addMCQS = async (req,res) => {
         "options":["","",""]
     }
     */
+
+    let arr = []
+    mcq_qa_json?.data?.map((block) => {
+        let mcq_qa = {
+            "type":"MCQ",
+            "question":block[0],
+            "answer":block[1],
+            "options":block[2]
+        }
+        arr.push(mcq_qa)
+    })
+
+    const session = await sessionCollection.doc(sessionId)
+    const sessionData = (await session.get()).data()
+    let old_arr = sessionData.questions
+    old_arr.push(arr)
+
+    await sessionCollection.doc(sessionId).update({
+        questions : old_arr
+        });
+
 }
 
-const addSubQA = async (req,res) => {
+const addSubQA = async ({sub_qa_json,sessionId}) => {
     //Input : Array of JSON object
     //Add in session collection
     //Questions -> array
@@ -74,6 +96,25 @@ const addSubQA = async (req,res) => {
         "answer":""
     }
     */
+    let arr = []
+    sub_qa_json?.data?.map((block) => {
+        let sub_qa = {
+            "type":"Sub",
+            "question":block[0],
+            "answer":block[1]
+        }
+        arr.push(sub_qa)
+    })
+
+    const session = await sessionCollection.doc(sessionId)
+    const sessionData = (await session.get()).data()
+    let old_arr = sessionData.questions
+    old_arr.push(arr)
+
+    await sessionCollection.doc(sessionId).update({
+        questions : old_arr
+        });
+
 }
 
 const createSession = async (req, res) => {
@@ -90,7 +131,7 @@ const createSession = async (req, res) => {
     }
     else {
         try {
-            const sessionId = await createSessionDB({title:title,fileURL:fileURL,userId:userId})
+            const sessionId = await createSessionDB({title:title,fileURL:fileURL,userId:userId,questions:[]})
             console.log("Session created")
             //Using URL make content and store in firestore (Doc-text)
             const content = await UTILS.extractText(fileURL)
@@ -104,9 +145,13 @@ const createSession = async (req, res) => {
             //Using content make qa and store in firestore
 
             const sub_qa = await UTILS.generateSubQA({text:content})
-            console.log(sub_qa)
+            const sub_qa_json = sub_qa.json()
+            await addSubQA(sub_qa_json,sessionId)
+            
             const mcq_qa = await UTILS.generateMCQ({text:content})
-            console.log(mcq_qa)
+            const mcq_qa_json = mcq_qa.json()
+            await addMCQS(mcq_qa_json,sessionId)
+            
 
             res.status(200).json({
                 message : "Successfully created! "
