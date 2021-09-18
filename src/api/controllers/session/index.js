@@ -3,6 +3,7 @@ const admin = require("firebase-admin");
 const sessionCollection = db_admin.firestore().collection("session");
 const userCollection = db_admin.firestore().collection("users");
 const contentCollection = db_admin.firestore().collection("content")
+const summariesCollection = ab_admin.firestore().collection("summaries")
 const FieldValue =  db_admin.firestore.FieldValue
 const UTILS = require("../utils")
 
@@ -48,6 +49,33 @@ const createSessionDB = async ({ title, fileURL, userId }) => {
     return newSession.id;
   };
 
+const addMCQS = async (req,res) => {
+    //Input : Array of JSON object
+    //Add in session collection
+    //Questions -> array
+    /*
+    {
+        type:"MCQ",
+        "question":"",
+        "answer":"",
+        "options":["","",""]
+    }
+    */
+}
+
+const addSubQA = async (req,res) => {
+    //Input : Array of JSON object
+    //Add in session collection
+    //Questions -> array
+    /*
+    {
+        type:"Sub",
+        "question":"",
+        "answer":""
+    }
+    */
+}
+
 const createSession = async (req, res) => {
     //Needs title, file URL , user ID to be sent
     //console.log(req.body)
@@ -74,6 +102,12 @@ const createSession = async (req, res) => {
                         contentId : contentId
                     })
             //Using content make qa and store in firestore
+
+            const sub_qa = await UTILS.generateSubQA({text:content})
+            console.log(sub_qa)
+            const mcq_qa = await UTILS.generateMCQ({text:content})
+            console.log(mcq_qa)
+
             res.status(200).json({
                 message : "Successfully created! "
             })
@@ -87,6 +121,41 @@ const createSession = async (req, res) => {
     
 }
 
+const createSummaryDB = async ({ summaryId , contentId }) => {
+    const newSummary = await summariesCollection.doc(summaryId).set({
+      content : contentId
+    });
+    
+    return newSummary.id;
+  };
+
+const createEasySummary = async (req,res) => {
+    try
+    {
+    const sessionId = req.query.id
+    const session = await sessionCollection.doc(sessionId)
+    const sessionData = (await session.get()).data()
+    console.log(sessionData.content)
+    const summary = await UTILS.generateEasySum({text:content})
+    console.log(summary)
+    const contentId = await createContentDB({content:summary})
+    await createSummaryDB({summaryId:"easy_"+sessionId,contentId:contentId})
+    }
+    catch(err){
+        res.status(300).json({
+            error: "Could not update to the database! " + err.message
+        });
+    }
+
+    res.status(200).json({
+        message : "Successfully created! "
+    })
+    
+
+}
+
+
 module.exports = {
-    createSession
+    createSession,
+    createEasySummary
 }

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { createSession } = require('../controllers/session');
+const { createSession,createEasySummary } = require('../controllers/session');
 
 const sessionRouter = Router();
 
@@ -9,5 +9,6 @@ sessionRouter.get('/ping', (_,res) => {
 
 // Config
 sessionRouter.post('/create',createSession);
+sessionRouter.post('/easy_summary/:id',createEasySummary);
 
 module.exports = sessionRouter;
