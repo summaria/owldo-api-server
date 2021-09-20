@@ -83,6 +83,7 @@ const setupSession = async (req, res) => {
       await sessionCollection.doc(sessionId).update({
         content: contentId,
         questions: [...subQas, ...mcqs],
+        setup: true,
       });
 
       res.status(200).json({
