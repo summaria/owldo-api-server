@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { createSession, createEasySummary } = require("../controllers/session");
+const { setupSession, createEasySummary } = require("../controllers/session");
 
 const sessionRouter = Router();
 
@@ -8,7 +8,7 @@ sessionRouter.get("/ping", (_, res) => {
 });
 
 // Config
-sessionRouter.post("/create", createSession);
+sessionRouter.post("/setup", setupSession);
 sessionRouter.post("/easy_summary", createEasySummary);
 
 module.exports = sessionRouter;

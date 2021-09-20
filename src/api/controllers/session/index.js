@@ -1,17 +1,8 @@
 const db_admin = require("../../../db/config");
-const admin = require("firebase-admin");
 const sessionCollection = db_admin.firestore().collection("session");
-const userCollection = db_admin.firestore().collection("users");
 const contentCollection = db_admin.firestore().collection("content");
 const summariesCollection = db_admin.firestore().collection("summaries");
-const FieldValue = db_admin.firestore.FieldValue;
 const UTILS = require("../utils");
-
-const addSessionToUser = async ({ sessionId, userId }) => {
-  await userCollection.doc(userId).update({
-    sessions: FieldValue.arrayUnion(sessionId),
-  });
-};
 
 const createContentDB = async ({ content }) => {
   const newContent = await contentCollection.doc();
@@ -21,32 +12,7 @@ const createContentDB = async ({ content }) => {
   return newContent.id;
 };
 
-const addContentToSession = async ({ sessionId, contentId }) => {
-  await sessionCollection.doc(sessionId).update({
-    content: contentId,
-  });
-  return;
-};
-
-const createSessionDB = async ({ title, fileURL, userId, questions }) => {
-  const newSession = await sessionCollection.doc();
-  //console.log(newSession);
-  await sessionCollection.doc(newSession.id).set({
-    id: newSession.id,
-    title,
-    fileURL,
-    questions,
-  });
-
-  await addSessionToUser({
-    sessionId: newSession.id,
-    userId: userId,
-  });
-
-  return newSession.id;
-};
-
-const addMCQS = async (mcq_qa_json, sessionId) => {
+const addMCQS = (mcq_qa_json) => {
   //Input : Array of JSON object
   //Add in session collection
   //Questions -> array
@@ -57,29 +23,16 @@ const addMCQS = async (mcq_qa_json, sessionId) => {
         "answer":"",
         "options":["","",""]
     }
-    */
-
-  let arr = [];
-  mcq_qa_json?.data?.forEach((block) => {
-    let mcq_qa = {
-      type: "MCQ",
-      question: block[0] || null,
-      answer: block[1] || null,
-      options: block[2] || null,
-    };
-    arr.push(mcq_qa);
-  });
-  console.log(arr);
-  const session = await sessionCollection.doc(sessionId);
-  const sessionData = (await session.get()).data();
-  let old_arr = [...sessionData.questions, ...arr];
-
-  await sessionCollection.doc(sessionId).update({
-    questions: old_arr,
-  });
+  */
+  return mcq_qa_json?.data?.map((block) => ({
+    type: "MCQ",
+    question: block[0] || null,
+    answer: block[1] || null,
+    options: block[2] || null,
+  }));
 };
 
-const addSubQA = async (sub_qa_json, sessionId) => {
+const addSubQA = (sub_qa_json) => {
   //Input : Array of JSON object
   //Add in session collection
   //Questions -> array
@@ -90,61 +43,47 @@ const addSubQA = async (sub_qa_json, sessionId) => {
         "answer":""
     }
     */
-  let arr = [];
-  sub_qa_json?.data?.forEach((block) => {
-    let sub_qa = {
-      type: "Sub",
-      question: block[0] || null,
-      answer: block[1] || null,
-    };
-    arr.push(sub_qa);
-  });
-
-  const session = sessionCollection.doc(sessionId);
-  const sessionData = (await session.get()).data();
-  let old_arr = [...sessionData.questions, ...arr];
-
-  await sessionCollection.doc(sessionId).update({
-    questions: old_arr,
-  });
+  return sub_qa_json?.data?.map((block) => ({
+    type: "Sub",
+    question: block[0] || null,
+    answer: block[1] || null,
+  }));
 };
 
-const createSession = async (req, res) => {
-  //Needs title, file URL , user ID to be sent
-  //console.log(req.body)
-  const { title, fileURL, userId } = req.body;
-  //Create session : store in firestore
-  //Add session to user -> Needs fixing!!!!
-  if (!title || !fileURL || !userId) {
+/**
+ * @param {Object} req { body: { fileURL, sessionId } }
+ */
+const setupSession = async (req, res) => {
+  const { fileURL, sessionId } = req.body;
+  if (!fileURL || !sessionId) {
     res.status(400).json({
-      error: "Invalid Request cannot be found",
+      error: "Either fileUrl or sessionId not provided!",
     });
   } else {
     try {
-      const sessionId = await createSessionDB({
-        title: title,
-        fileURL: fileURL,
-        userId: userId,
-        questions: [],
-      });
-      console.log("Session created");
-      //Using URL make content and store in firestore (Doc-text)
+      // extracting text from the file url
+      console.log("Converting doc to text");
       const content = await UTILS.extractText(fileURL);
-      //console.log(content.data.text);
-      const contentId = await createContentDB({ content: content });
-      console.log("Content created");
-      await addContentToSession({
-        sessionId: sessionId,
-        contentId: contentId,
-      });
-      //Using content make qa and store in firestore
 
+      // creating content for the extracted text.
+      const contentId = await createContentDB({ content: content });
+
+      // creating subjective QAs
+      console.log("Generating Subjective QA!");
       const sub_qa = await UTILS.generateSubQA({ text: content.data.text });
-      await addSubQA(sub_qa, sessionId);
-      console.log("subQA over3");
+      let subQas = addSubQA(sub_qa) || [];
+
+      // creating mcqs
+      console.log("Generating mcqs!");
       const mcq_qa = await UTILS.generateMCQ({ text: content.data.text });
-      console.log("mcqs:", mcq_qa);
-      await addMCQS(mcq_qa, sessionId);
+      let mcqs = addMCQS(mcq_qa) || [];
+
+      console.log(subQas, mcqs);
+      // Saving data into the sessions collection
+      await sessionCollection.doc(sessionId).update({
+        content: contentId,
+        questions: [...subQas, ...mcqs],
+      });
 
       res.status(200).json({
         message: "Successfully created! ",
@@ -175,7 +114,6 @@ const createEasySummary = async (req, res) => {
       await contentCollection.doc(sessionData.content).get()
     ).data();
     const summary = await UTILS.generateEasySum({ text: content.content });
-    console.log(summary);
     const contentId = await createContentDB({
       content: {
         data: {
@@ -199,6 +137,6 @@ const createEasySummary = async (req, res) => {
 };
 
 module.exports = {
-  createSession,
+  setupSession,
   createEasySummary,
 };
