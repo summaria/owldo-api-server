@@ -105,39 +105,48 @@ const createSummaryDB = async ({ summaryId, contentId }) => {
   return newSummary.id;
 };
 
-const createEasySummary = async (req, res) => {
+const createSummary = async (req, res) => {
+  console.log("Creating summary");
   try {
     const sessionId = req.body.id;
-    console.log(sessionId);
     const session = await sessionCollection.doc(sessionId);
     const sessionData = (await session.get()).data();
     const content = (
       await contentCollection.doc(sessionData.content).get()
     ).data();
-    const summary = await UTILS.generateEasySum({ text: content.content });
-    const contentId = await createContentDB({
-      content: {
-        data: {
-          text: summary?.data && summary?.data[0],
-        },
-      },
+    console.log(content);
+    const summary = await UTILS.generateSummary({
+      text: content.content,
+      extent: req.body.extent,
     });
-    await createSummaryDB({
-      summaryId: "easy_" + sessionId,
-      contentId: contentId,
+
+    console.log("Summary:", summary);
+    // const contentId = await createContentDB({
+    //   content: {
+    //     data: {
+    //       text: summary?.data && summary?.data[0],
+    //     },
+    //   },
+    // });
+    // await createSummaryDB({
+    //   summaryId:
+    //     (extend === 0 ? "easy_" : extend === 1 ? "medium_" : "hard_") +
+    //     sessionId,
+    //   contentId: contentId,
+    // });
+    res.status(200).json({
+      message: "Successfully created! ",
+      data: summary?.data && summary?.data[0],
     });
   } catch (err) {
+    console.log(err);
     res.status(300).json({
       error: "Could not update to the database! " + err.message,
     });
   }
-
-  res.status(200).json({
-    message: "Successfully created! ",
-  });
 };
 
 module.exports = {
   setupSession,
-  createEasySummary,
+  createSummary,
 };
